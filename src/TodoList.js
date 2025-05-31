@@ -1,43 +1,52 @@
 import React, { useState, useEffect } from "react";
-import './TodoList.css';
+import "./TodoList.css";
 
 const TodoList = () => {
-  const [tasks, setTasks] = useState([]);
+  const [tasks, setTasks] = useState(() => {
+    //Load once on initial render
+    const stored = localStorage.getItem("tasks");
+    return stored ? JSON.parse(stored) : [];
+  });
+
   const [newTask, setNewTask] = useState("");
   const [filter, setFilter] = useState("all");
 
-  useEffect(() => {
-    const savedTasks = JSON.parse(localStorage.getItem("tasks")) || [];
-    setTasks(savedTasks);
-  }, []);
-
+  //Save tasks to localStorage whenever they change
   useEffect(() => {
     localStorage.setItem("tasks", JSON.stringify(tasks));
   }, [tasks]);
 
   const addTask = () => {
     if (!newTask.trim()) return;
-    setTasks([...tasks, { text: newTask.trim(), completed: false }]);
+    setTasks([...tasks, { text: newTask.trim(), completed: false, status: "enter" }]);
     setNewTask("");
   };
 
-  const removeTask = (index) => {
-    const updatedTasks = tasks.filter((_, i) => i !== index);
-    setTasks(updatedTasks);
-  };
-
   const toggleTask = (index) => {
-    const updatedTasks = tasks.map((task, i) =>
+    const updated = tasks.map((task, i) =>
       i === index ? { ...task, completed: !task.completed } : task
     );
-    setTasks(updatedTasks);
+    setTasks(updated);
+  };
+
+  const removeTask = (index) => {
+    const updated = [...tasks];
+    updated[index]={...updated[index], status:"exit"}
+    setTasks(updated);
+
+    setTimeout(()=>{
+      const finalTasks = updated.filter((_, i) => i !== index)
+      setTasks(finalTasks)
+    },400)
   };
 
   const filteredTasks = tasks.filter((task) => {
-    if (filter === "completed") return task.completed;
     if (filter === "active") return !task.completed;
+    if (filter === "completed") return task.completed;
     return true;
   });
+
+  const remainingTasks = tasks.filter(task => !task.completed).length
 
   return (
     <div className="todo-container">
@@ -45,18 +54,14 @@ const TodoList = () => {
 
       <div className="todo-input-container">
         <input
-          className="todo-input"
           type="text"
-          placeholder="Add a new task..."
+          className="todo-input"
+          placeholder="Add a task..."
           value={newTask}
           onChange={(e) => setNewTask(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              addTask();
-            }
-          }}
+          onKeyDown={(e) => e.key === "Enter" && addTask()}
         />
-        <button className="todo-button" onClick={addTask}> Add </button>
+        <button onClick={addTask} className="todo-button">Add</button>
       </div>
 
       <div className="todo-filters">
@@ -71,20 +76,35 @@ const TodoList = () => {
         ))}
       </div>
 
+      <p className="task-counter fade-in" key={remainingTasks + "- " + tasks.length}>
+        {tasks.length === 0 ? (
+          <>
+            ✨No tasks yet !  Add some tasks to get started💪
+          </>
+        ) :
+          remainingTasks === 0 ? (
+            <>
+              🎉 All tasks completed! Great job!🏆
+            </>
+          ) : (
+            <>
+              📝 You have {remainingTasks} task{remainingTasks !== 1 ? "s" : ""} to go!
+            </>
+          )}
+      </p>
+
       <ul className="todo-list">
         {filteredTasks.map((task, index) => (
-          <li key={index} className="todo-item">
+          <li key={index} className={`todo-item ${task.completed ? "completed" : ""} ${task.status === "enter" ? "enter" : ""} ${task.status === "exit" ? "exit" : ""}`}>
             <div>
               <input
                 type="checkbox"
                 checked={task.completed}
                 onChange={() => toggleTask(index)}
               />
-              <span className={task.completed ? "completed" : ""}> {task.text}</span>
+              <span className={task.completed ? "completed" : ""}>{task.text}</span>
             </div>
-            <button className="remove-button" onClick={() => removeTask(index)}>
-              Remove
-            </button>
+            <button className="remove-button" onClick={() => removeTask(index)}>Remove</button>
           </li>
         ))}
       </ul>
